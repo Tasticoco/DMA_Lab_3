@@ -31,15 +31,43 @@ class WifiRttViewModel : ViewModel() {
     private val _rangedAccessPoints = MutableLiveData(emptyList<RangedAccessPoint>())
     val rangedAccessPoints : LiveData<List<RangedAccessPoint>> = _rangedAccessPoints.map { l -> l.toList().map { el -> el.copy() } }
 
+
+    private val TIME_TO_STAY_ALIVE = 15000
+
     // CONFIGURATION MANAGEMENT
     // TODO change map here
     private val _mapConfig = MutableLiveData(MapConfigs.b30)
     val mapConfig : LiveData<MapConfig> get() = _mapConfig
 
     fun onNewRangingResults(newResults : List<RangingResult>) {
-        //TODO we need to update encapsulated list of <RangedAccessPoint> in
-        _rangedAccessPoints
+        //TODO we need to update encapsulated list of <RangedAccessPoint> in _rangedAccessPoints
+        val oldList = _rangedAccessPoints.value?.toMutableList()
+        val toDeleteList : MutableList<RangedAccessPoint> = mutableListOf()
 
+        if(oldList != null) {
+            val currTime : Long = System.currentTimeMillis()
+            for (ap in oldList) {
+                val newRanging = newResults.find{it.macAddress.toString() == ap.bssid}
+                if(newRanging != null) {
+                    ap.update(newRanging)
+                } else if ((currTime - ap.age) > TIME_TO_STAY_ALIVE) { //Check son age
+                    toDeleteList.add(ap)
+                }
+            }
+
+            //Delete the DEAD access points
+            for(ap in toDeleteList)
+                oldList.remove(ap)
+
+
+            // Add all new access points
+            for (res in newResults){
+                if (oldList.none{it.bssid == res.macAddress.toString()}){
+                    oldList.add(RangedAccessPoint.newInstance(res))
+                }
+            }
+             _rangedAccessPoints.postValue(oldList)
+        }
         // when the list is updated, we also want to update estimated location
         estimateLocation()
     }

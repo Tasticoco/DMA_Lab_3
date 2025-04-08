@@ -1,23 +1,32 @@
 package ch.heigvd.iict.dma.wifirtt
 
 import android.Manifest
+import android.annotation.SuppressLint
 import android.content.Context
 import android.content.pm.PackageManager
 import android.net.wifi.WifiManager
+import android.net.wifi.rtt.RangingRequest
+import android.net.wifi.rtt.RangingResult
+import android.net.wifi.rtt.RangingResultCallback
 import android.net.wifi.rtt.WifiRttManager
 import android.os.Build
 import androidx.appcompat.app.AppCompatActivity
 import android.os.Bundle
+import android.util.Log
 import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.viewModels
+import androidx.annotation.RequiresPermission
 import androidx.navigation.findNavController
 import androidx.navigation.ui.AppBarConfiguration
 import androidx.navigation.ui.setupActionBarWithNavController
 import androidx.navigation.ui.setupWithNavController
 import ch.heigvd.iict.dma.wifirtt.databinding.ActivityMainBinding
+import ch.heigvd.iict.dma.wifirtt.models.RangedAccessPoint
 import com.google.android.material.bottomnavigation.BottomNavigationView
+import java.util.concurrent.Executors
 import java.util.Timer
+import java.util.concurrent.Executor
 import kotlin.concurrent.timer
 
 class MainActivity : AppCompatActivity() {
@@ -26,8 +35,11 @@ class MainActivity : AppCompatActivity() {
 
     private val wifiRttViewModel : WifiRttViewModel by viewModels()
 
+    private val executor : Executor = Executors.newSingleThreadExecutor()
+
     private lateinit var wifiManager: WifiManager
     private lateinit var wifiRttManager : WifiRttManager
+
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -77,22 +89,47 @@ class MainActivity : AppCompatActivity() {
 
     private var rangingTask : Timer? = null
 
+    @RequiresPermission(Manifest.permission.ACCESS_FINE_LOCATION)
     override fun onStart() {
         super.onStart()
         // 3. we start ranging
         wifiRttViewModel.wifiRttEnabled.observe(this) {isEnabled ->
             if(isEnabled == null) return@observe
             if(isEnabled) {
-                rangingTask?.cancel() // we cancel eventual previous task
-                rangingTask =
-                    timer("ranging_timer", daemon = false, initialDelay = 500, period = 250) {
-                        //TODO implement ranging with
-                        wifiRttManager
-                        // valid ranging results should be pass to viewmodel using
-                        wifiRttViewModel.onNewRangingResults(emptyList())
-                    }
+                performRanging()
             }
         }
+    }
+
+    @SuppressLint("MissingPermission")
+    fun performRanging(){
+        rangingTask?.cancel() // we cancel eventual previous task
+        rangingTask =
+            timer("ranging_timer", daemon = false, initialDelay = 500, period = 250) {
+                //TODO implement ranging with wifiRttManager
+                val scanRes = wifiManager.scanResults?.filter { it.is80211mcResponder }
+                val req: RangingRequest = RangingRequest.Builder().run{
+                    if (scanRes != null) {
+                        for(res in scanRes){
+                            addAccessPoint(res)
+                        }
+                    }
+                    build()
+                }
+
+                wifiRttManager.startRanging(req, executor, object : RangingResultCallback() {
+                    override fun onRangingResults(results: List<RangingResult>) {
+                        val successResults =
+                            results.filter { it.status == RangingResult.STATUS_SUCCESS }
+                        wifiRttViewModel.onNewRangingResults(successResults)
+                     }
+
+                    override fun onRangingFailure(code: Int) {
+                        Log.d("RTT", "Ranging failed with code ${code}")
+                    }
+                })
+            }
+
     }
 
     override fun onStop() {
