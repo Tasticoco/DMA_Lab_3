@@ -40,7 +40,7 @@ class WifiRttViewModel : ViewModel() {
 
     // CONFIGURATION MANAGEMENT
     // TODO change map here
-    private val _mapConfig = MutableLiveData(MapConfigs.b30)
+    private val _mapConfig = MutableLiveData(MapConfigs.levelB)
     val mapConfig : LiveData<MapConfig> get() = _mapConfig
 
     fun onNewRangingResults(newResults : List<RangingResult>) {
@@ -109,7 +109,7 @@ class WifiRttViewModel : ViewModel() {
         val chosenAP = _rangedAccessPoints.value
             ?.filter { _mapConfig.value?.accessPointKnownLocations?.keys?.contains(it.bssid) ?: false }
             ?.sortedBy{it.distanceMm}
-            ?.take(3)!!
+            ?.take(4)!!
 
         val positions = chosenAP.map { _mapConfig.value?.accessPointKnownLocations?.get(it.bssid)!! }
             .map { doubleArrayOf(it.xMm.toDouble(), it.yMm.toDouble(), it.heightMm.toDouble()) }
@@ -120,12 +120,16 @@ class WifiRttViewModel : ViewModel() {
         val estimatedDistances = chosenAP.map { Pair(it.bssid, it.distanceMm)}.toMap().toMutableMap()
 
         if(positions.size != distances.size || positions.size < 3){
-            _estimatedPosition.postValue(doubleArrayOf(0.0, 0.0, 0.0))
+            //_estimatedPosition.postValue(doubleArrayOf(0.0, 0.0, 0.0))
         } else {
-            val solver = NonLinearLeastSquaresSolver(TrilaterationFunction(positions, distances), LevenbergMarquardtOptimizer())
-            val optimum : LeastSquaresOptimizer.Optimum = solver.solve()
+            try{
+                val solver = NonLinearLeastSquaresSolver(TrilaterationFunction(positions, distances), LevenbergMarquardtOptimizer())
+                val optimum : LeastSquaresOptimizer.Optimum = solver.solve()
+                _estimatedPosition.postValue(optimum.getPoint().toArray())
+            } catch (ex: Exception){
+                Log.e(TAG, "Error during trilateration", ex)
+            }
 
-            _estimatedPosition.postValue(optimum.getPoint().toArray())
         }
         _estimatedDistances.postValue(estimatedDistances)
     }

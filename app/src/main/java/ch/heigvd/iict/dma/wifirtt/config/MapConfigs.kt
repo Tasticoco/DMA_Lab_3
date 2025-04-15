@@ -34,7 +34,7 @@ object MapConfigs {
             "bc:df:58:f2:f9:ee" to  AccessPointLocation("bc:df:58:f2:f9:ee", 13869, 19365, -210), // B23
             "bc:df:58:f2:f7:b4" to  AccessPointLocation("bc:df:58:f2:f7:b4", 23165, 455, 2220), // B30 (armoire)
             "24:e5:0f:08:17:a9" to  AccessPointLocation("24:e5:0f:08:17:a9", 22709, 9386, 800), // B30 (fenêtres)
-            "24:e5:0f:08:5c:15" to  AccessPointLocation("24:e5:0f:08:5c:15", 16680, 802, 1219), // B30 (arrière)
+            "24:e5:0f:08:5c:15" to  AccessPointLocation("24:e5:0f:08:5c:19", 16680, 802, 1219), // B30 (arrière)
             "24:e5:0f:08:05:f7" to  AccessPointLocation("24:e5:0f:08:05:f7", 31412, 4784, 0), // B34
         )
     )
