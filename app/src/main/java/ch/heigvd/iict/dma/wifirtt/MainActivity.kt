@@ -29,6 +29,10 @@ import java.util.Timer
 import java.util.concurrent.Executor
 import kotlin.concurrent.timer
 
+/**
+ * @author Guillaume Dunant, Haeffner Edwin, Junod Arthur
+ */
+
 class MainActivity : AppCompatActivity() {
 
     private lateinit var binding: ActivityMainBinding
@@ -106,7 +110,6 @@ class MainActivity : AppCompatActivity() {
         rangingTask?.cancel() // we cancel eventual previous task
         rangingTask =
             timer("ranging_timer", daemon = false, initialDelay = 500, period = 250) {
-                //TODO implement ranging with wifiRttManager
                 val scanRes = wifiManager.scanResults?.filter { it.is80211mcResponder }
                 val req: RangingRequest = RangingRequest.Builder().run{
                     if (scanRes != null) {
@@ -125,7 +128,7 @@ class MainActivity : AppCompatActivity() {
                      }
 
                     override fun onRangingFailure(code: Int) {
-                        Log.d("RTT", "Ranging failed with code ${code}")
+                        Log.d("RTT", "Ranging failed with code $code")
                     }
                 })
             }

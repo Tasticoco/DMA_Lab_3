@@ -13,6 +13,10 @@ import com.lemmingapex.trilateration.*
 import org.apache.commons.math3.fitting.leastsquares.LeastSquaresOptimizer
 import org.apache.commons.math3.fitting.leastsquares.LevenbergMarquardtOptimizer
 
+/**
+ * @author Guillaume Dunant, Haeffner Edwin, Junod Arthur
+ */
+
 class WifiRttViewModel : ViewModel() {
 
     // PERMISSIONS MANAGEMENT
@@ -39,12 +43,10 @@ class WifiRttViewModel : ViewModel() {
     private val TIME_TO_STAY_ALIVE = 15000
 
     // CONFIGURATION MANAGEMENT
-    // TODO change map here
     private val _mapConfig = MutableLiveData(MapConfigs.levelB)
     val mapConfig : LiveData<MapConfig> get() = _mapConfig
 
     fun onNewRangingResults(newResults : List<RangingResult>) {
-        //TODO we need to update encapsulated list of <RangedAccessPoint> in _rangedAccessPoints
         val oldList = _rangedAccessPoints.value?.toMutableList()
         val toDeleteList : MutableList<RangedAccessPoint> = mutableListOf()
 
@@ -54,7 +56,7 @@ class WifiRttViewModel : ViewModel() {
                 val newRanging = newResults.find{it.macAddress.toString() == ap.bssid}
                 if(newRanging != null) {
                     ap.update(newRanging)
-                } else if ((currTime - ap.age) > TIME_TO_STAY_ALIVE) { //Check son age
+                } else if ((currTime - ap.age) > TIME_TO_STAY_ALIVE) { //Check the age
                     toDeleteList.add(ap)
                 }
             }
@@ -92,7 +94,6 @@ class WifiRttViewModel : ViewModel() {
     }
 
     private fun estimateLocation() {
-        // TODO we need to compute the estimated location by trilateration
         // the library https://github.com/lemmingapex/trilateration
         // will certainly helps you for the maths
 
@@ -102,15 +103,13 @@ class WifiRttViewModel : ViewModel() {
 
         //as well as the distances with each access point as a MutableMap<String, Double>
 
-        //val positions = _mapConfig.value?.accessPointKnownLocations
-        //    ?.map { doubleArrayOf(it.value.xMm.toDouble(), it.value.yMm.toDouble(), it.value.heightMm.toDouble()) }
-        //    ?.toTypedArray()
-
+        // Get all the valid AP and take the first 4 after we sort them by distance (take the 4 closest)
         val chosenAP = _rangedAccessPoints.value
             ?.filter { _mapConfig.value?.accessPointKnownLocations?.keys?.contains(it.bssid) ?: false }
             ?.sortedBy{it.distanceMm}
             ?.take(4)!!
 
+        // The position of each AP
         val positions = chosenAP.map { _mapConfig.value?.accessPointKnownLocations?.get(it.bssid)!! }
             .map { doubleArrayOf(it.xMm.toDouble(), it.yMm.toDouble(), it.heightMm.toDouble()) }
             .toTypedArray()
@@ -120,12 +119,13 @@ class WifiRttViewModel : ViewModel() {
         val estimatedDistances = chosenAP.map { Pair(it.bssid, it.distanceMm)}.toMap().toMutableMap()
 
         if(positions.size != distances.size || positions.size < 3){
+            // Do nothing or
             //_estimatedPosition.postValue(doubleArrayOf(0.0, 0.0, 0.0))
         } else {
             try{
                 val solver = NonLinearLeastSquaresSolver(TrilaterationFunction(positions, distances), LevenbergMarquardtOptimizer())
                 val optimum : LeastSquaresOptimizer.Optimum = solver.solve()
-                _estimatedPosition.postValue(optimum.getPoint().toArray())
+                _estimatedPosition.postValue(optimum.point.toArray())
             } catch (ex: Exception){
                 Log.e(TAG, "Error during trilateration", ex)
             }
